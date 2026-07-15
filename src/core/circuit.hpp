@@ -29,6 +29,7 @@ public:
     size_t num_nodes() const { return max_node_id; }
     const std::vector<std::unique_ptr<Component>>& get_components() const { return components; }
     void export_spice(std::ostream& os) const;
+    void update_voltage(const std::string& name, double new_value);
 };
 
 } // namespace asic

@@ -11,9 +11,10 @@ MnaMatrix::MnaMatrix(const Circuit& circuit) {
 
     // First pass: Count independent voltage sources and index map them
     for (const auto& comp : circuit.get_components()) {
-        if (dynamic_cast<const Passives::VoltageSource*>(comp.get())) {
-            source_index_map[comp->name] = num_sources;
-            num_sources++;
+        if (dynamic_cast<const Passives::VoltageSource*>(comp.get()) ||
+            dynamic_cast<const Passives::PulseSource*>(comp.get()) ||
+            dynamic_cast<const Passives::TernaryClock*>(comp.get())) { 
+            source_index_map[comp->name] = num_sources++;
         }
     }
 
@@ -47,7 +48,7 @@ void MnaMatrix::stamp_current_source(size_t pos_node, size_t neg_node, double cu
     if (neg_node > 0) z(neg_node - 1) += current;
 }
 
-void MnaMatrix::stamp_static_elements(const Circuit& circuit) {
+void MnaMatrix::stamp_static_elements(const Circuit& circuit, double t) {
     for (const auto& comp : circuit.get_components()) {
         // 1. Stamp Resistors
         if (auto r = dynamic_cast<const Passives::Resistor*>(comp.get())) {
@@ -79,14 +80,51 @@ void MnaMatrix::stamp_static_elements(const Circuit& circuit) {
             // Set the target forced voltage value
             z(idx) = val;
         }
+
+        // 3. Stamp Dynamic Pulse Sources
+        else if (auto p = dynamic_cast<const Passives::PulseSource*>(comp.get())) {
+            size_t pos = p->nodes[0];
+            size_t neg = p->nodes[1];
+            size_t idx = num_nodes + source_index_map[p->name];
+            
+            // Sample the waveform at the current time step
+            double val = p->get_voltage(t);
+            
+            if (pos > 0) { A(pos - 1, idx) += 1.0; A(idx, pos - 1) += 1.0; }
+            if (neg > 0) { A(neg - 1, idx) -= 1.0; A(idx, neg - 1) -= 1.0; }
+            
+            z(idx) = val;
+        }
+
+        // 4. Stamp Ternary Staircase Clocks
+        else if (auto tclk = dynamic_cast<const Passives::TernaryClock*>(comp.get())) {
+            size_t pos = tclk->nodes[0];
+            size_t neg = tclk->nodes[1];
+            size_t idx = num_nodes + source_index_map[tclk->name];
+            
+            // Sample the staircase waveform at the current time step
+            double val = tclk->get_voltage(t);
+            
+            if (pos > 0) { A(pos - 1, idx) += 1.0; A(idx, pos - 1) += 1.0; }
+            if (neg > 0) { A(neg - 1, idx) -= 1.0; A(idx, neg - 1) -= 1.0; }
+            
+            z(idx) = val;
+        }
+    }
+
+    // --- THE GMIN FIX ---
+    // Inject a 100 nano-Siemens conductance to prevent floating nodes
+    double gmin = 1e-7;
+    for (size_t i = 0; i < num_nodes; ++i) {
+        A(i, i) += gmin;
     }
 }
 
 bool MnaMatrix::solve() {
-    // Switch to FullPivLU to get robust invertibility checking natively
     Eigen::FullPivLU<Eigen::MatrixXd> lu(A);
     if (!lu.isInvertible()) {
-        std::cerr << "[libasic] Error: Matrix system is singular. Floating node or short circuit detected.\n";
+        std::cerr << "[libasic] CRITICAL: Singular matrix detected at:\n";
+        print_system(); // This will print the exact matrix state for us to debug
         return false;
     }
     x = lu.solve(z);

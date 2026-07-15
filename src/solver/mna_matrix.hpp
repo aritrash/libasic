@@ -20,14 +20,14 @@ private:
     // The A * x = z linear framework components
     Eigen::MatrixXd A; // System Coefficient Matrix
     Eigen::VectorXd z; // Contributions Vector (Knowns)
-    Eigen::VectorXd x; // Operating Point Vector (Unknown Voltages/Currents)
 
 public:
     explicit MnaMatrix(const Circuit& circuit);
+    Eigen::VectorXd x; // Operating Point Vector (Unknown Voltages/Currents)
 
     // Core Builders
     void clear();
-    void stamp_static_elements(const Circuit& circuit);
+    void stamp_static_elements(const Circuit& circuit, double t = 0.0);
     
     // Non-linear interaction hook for Newton-Raphson iteration
     void stamp_conductance(size_t node_a, size_t node_b, double conductance);

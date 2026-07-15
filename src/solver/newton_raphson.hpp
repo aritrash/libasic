@@ -23,6 +23,10 @@ public:
     
     // Linearly approximates active silicon devices based on current voltage guesses
     void stamp_nonlinear_devices(const Circuit& circuit, const MnaMatrix& current_state, MnaMatrix& target_matrix);
+    void stamp_single_mosfet(size_t d, size_t g, size_t s, size_t b, 
+                             Polarity polarity, double w, double l, double vth, 
+                             double gamma, double phi, 
+                             const MnaMatrix& current_state, MnaMatrix& target_matrix) const;
 };
 
 } // namespace asic

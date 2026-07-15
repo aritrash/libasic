@@ -1,6 +1,7 @@
 #include "core/circuit.hpp"
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 
 namespace asic {
 
@@ -8,6 +9,20 @@ void Circuit::update_node_bounds(const std::vector<size_t>& connected_nodes) {
     for (size_t node : connected_nodes) {
         if (node > max_node_id) max_node_id = node;
     }
+}
+
+void Circuit::update_voltage(const std::string& name, double new_value) {
+    for (auto& comp : components) {
+        // Find component by name
+        if (comp->name == name) {
+            // Attempt to cast to a VoltageSource
+            if (auto v = dynamic_cast<Passives::VoltageSource*>(comp.get())) {
+                v->value = new_value;
+                return;
+            }
+        }
+    }
+    std::cerr << "[libasic] Warning: Could not update voltage for component: " << name << std::endl;
 }
 
 void Circuit::export_spice(std::ostream& os) const {
@@ -58,6 +73,26 @@ void Circuit::export_spice(std::ostream& os) const {
                 os << " IC=" << c->initial_voltage;
             }
             os << "\n";
+        } else if (auto p = dynamic_cast<const Passives::PulseSource*>(comp.get())) {
+            // SPICE Format: V<name> N+ N- PULSE(V1 V2 Td Tr Tf Pw Per)
+            os << "V" << p->name << " " 
+               << p->nodes[0] << " " << p->nodes[1] 
+               << " PULSE(" << p->v_initial << " " << p->v_peak << " " 
+               << p->t_delay << " " << p->t_rise << " " << p->t_fall << " " 
+               << p->t_pulse_width << " " << p->t_period << ")\n";
+        } else if (auto tclk = dynamic_cast<const Passives::TernaryClock*>(comp.get())) {
+            os << "V" << tclk->name << " " 
+               << tclk->nodes[0] << " " << tclk->nodes[1] 
+               << " STAIRCASE(" << tclk->v_neg << " " << tclk->v_mid << " " << tclk->v_pos << ")\n";
+        } else if (auto tg = dynamic_cast<const fet::tgate*>(comp.get())) {
+            // Unroll T-Gate into parallel NMOS and PMOS for SPICE
+            // M<name>_N D G S B NMOS
+            os << "M" << tg->name << "_N " << tg->nodes[1] << " " << tg->nodes[2] << " " 
+               << tg->nodes[0] << " " << tg->nodes[4] << " NMOS W=" << tg->width_n << " L=" << tg->length << "\n";
+            
+            // M<name>_P D G S B PMOS
+            os << "M" << tg->name << "_P " << tg->nodes[1] << " " << tg->nodes[3] << " " 
+               << tg->nodes[0] << " " << tg->nodes[5] << " PMOS W=" << tg->width_p << " L=" << tg->length << "\n";
         }
     }
     
