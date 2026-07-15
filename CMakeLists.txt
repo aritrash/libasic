@@ -25,6 +25,7 @@ add_library(libasic STATIC
     src/core/circuit.cpp
     src/solver/mna_matrix.cpp
     src/solver/newton_raphson.cpp
+    src/solver/transient_solver.cpp
 )
 
 # Expose the src directory so '#include "core/..."' works

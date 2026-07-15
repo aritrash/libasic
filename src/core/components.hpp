@@ -35,6 +35,15 @@ public:
         VoltageSource(std::string id, size_t pos_node, size_t neg_node, double val, VoltageType t)
             : Component(std::move(id), {pos_node, neg_node}), value(val), type(t) {}
     };
+
+    class Capacitor : public Component {
+    public:
+        double capacitance;
+        double initial_voltage; // Used for SPICE .IC and transient startup state
+
+        Capacitor(std::string id, size_t node_a, size_t node_b, double c, double ic = 0.0)
+            : Component(std::move(id), {node_a, node_b}), capacitance(c), initial_voltage(ic) {}
+    };
 };
 
 // Field Effect Transistor API

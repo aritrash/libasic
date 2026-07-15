@@ -47,6 +47,17 @@ void Circuit::export_spice(std::ostream& os) const {
             os << "Q" << q->name << " " 
                << q->nodes[0] << " " << q->nodes[1] << " " << q->nodes[2] 
                << " PNP\n";
+        } else if (auto c = dynamic_cast<const Passives::Capacitor*>(comp.get())) {
+            // Standard SPICE Capacitor format: C<name> node+ node- <value> [IC=<val>]
+            os << "C" << c->name << " " 
+               << c->nodes[0] << " " << c->nodes[1] 
+               << " " << c->capacitance;
+            
+            // Only export the initial condition if it's non-zero
+            if (c->initial_voltage != 0.0) {
+                os << " IC=" << c->initial_voltage;
+            }
+            os << "\n";
         }
     }
     
