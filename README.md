@@ -1,8 +1,8 @@
-# libana
+# libasic
 
-`libana` is a minimal, high-performance C++ analog circuit simulation and nodal analysis library. It provides an object-oriented API to construct continuous-time electrical networks, simulate non-linear device behaviors, and export standard SPICE netlists for physical ASIC layout generation.
+`libasic` is a minimal, high-performance C++ analog circuit simulation and nodal analysis library. It provides an object-oriented API to construct continuous-time electrical networks, simulate non-linear device behaviors, and export standard SPICE netlists for physical ASIC layout generation.
 
-Unlike traditional binary-constrained digital design tools, `libana` operates completely in continuous voltage domains, making it natively suited for exploring multi-valued logic (MVL), balanced ternary architectures, mixed-signal hardware blocks, and neuromorphic computing.
+Unlike traditional binary-constrained digital design tools, `libasic` operates completely in continuous voltage domains, making it natively suited for exploring multi-valued logic (MVL), balanced ternary architectures, mixed-signal hardware blocks, and neuromorphic computing.
 
 ## Features
 
@@ -14,7 +14,7 @@ Unlike traditional binary-constrained digital design tools, `libana` operates co
 ## Project Structure
 
 ```text
-libana/
+libasic/
 ├── CMakeLists.txt
 ├── LICENSE
 ├── README.md

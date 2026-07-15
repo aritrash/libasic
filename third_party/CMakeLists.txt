@@ -1,4 +1,9 @@
-# libana third-party dependencies placeholder configuration
-# Future packages (e.g., micro-testing suites, custom plot wrappers) hook here.
+# libasic third-party dependencies configuration
+cmake_minimum_required(VERSION 3.14)
 
-message(STATUS "libana: third_party dependencies configured.")
+# Ensure Eigen's fetched source path is visible globally to the IDE's language server
+if(eigen_SOURCE_DIR)
+    include_directories(SYSTEM ${eigen_SOURCE_DIR})
+endif()
+
+message(STATUS "libasic: Third-party include paths exported successfully.")
