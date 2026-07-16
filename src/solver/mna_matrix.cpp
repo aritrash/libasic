@@ -32,7 +32,6 @@ void MnaMatrix::clear() {
 }
 
 void MnaMatrix::stamp_conductance(size_t node_a, size_t node_b, double conductance) {
-    // Node 0 is GND: We don't solve equations for it
     if (node_a > 0) A(node_a - 1, node_a - 1) += conductance;
     if (node_b > 0) A(node_b - 1, node_b - 1) += conductance;
     
@@ -43,88 +42,59 @@ void MnaMatrix::stamp_conductance(size_t node_a, size_t node_b, double conductan
 }
 
 void MnaMatrix::stamp_current_source(size_t pos_node, size_t neg_node, double current) {
-    // Current leaves pos_node and enters neg_node
     if (pos_node > 0) z(pos_node - 1) -= current;
     if (neg_node > 0) z(neg_node - 1) += current;
 }
 
 void MnaMatrix::stamp_static_elements(const Circuit& circuit, double t) {
     for (const auto& comp : circuit.get_components()) {
-        // 1. Stamp Resistors
+        
         if (auto r = dynamic_cast<const Passives::Resistor*>(comp.get())) {
             double g = 1.0 / r->resistance;
             stamp_conductance(r->nodes[0], r->nodes[1], g);
         }
-        // 2. Stamp Independent Voltage Sources
         else if (auto v = dynamic_cast<const Passives::VoltageSource*>(comp.get())) {
             size_t pos = v->nodes[0];
             size_t neg = v->nodes[1];
-            
-            // Map to the extra row/col reserved for this source's current
             size_t idx = num_nodes + source_index_map[v->name];
-            
-            // Handle split-rail systems seamlessly (Negative DC)
             double val = (v->type == VoltageType::NDC) ? -std::abs(v->value) : v->value;
             
-            // Positive terminal interaction
-            if (pos > 0) {
-                A(pos - 1, idx) += 1.0;
-                A(idx, pos - 1) += 1.0;
-            }
-            // Negative terminal interaction
-            if (neg > 0) {
-                A(neg - 1, idx) -= 1.0;
-                A(idx, neg - 1) -= 1.0;
-            }
-            
-            // Set the target forced voltage value
+            if (pos > 0) { A(pos - 1, idx) += 1.0; A(idx, pos - 1) += 1.0; }
+            if (neg > 0) { A(neg - 1, idx) -= 1.0; A(idx, neg - 1) -= 1.0; }
             z(idx) = val;
         }
-
-        // 3. Stamp Dynamic Pulse Sources
         else if (auto p = dynamic_cast<const Passives::PulseSource*>(comp.get())) {
             size_t pos = p->nodes[0];
             size_t neg = p->nodes[1];
             size_t idx = num_nodes + source_index_map[p->name];
             
-            // Sample the waveform at the current time step
             double val = p->get_voltage(t);
             
             if (pos > 0) { A(pos - 1, idx) += 1.0; A(idx, pos - 1) += 1.0; }
             if (neg > 0) { A(neg - 1, idx) -= 1.0; A(idx, neg - 1) -= 1.0; }
-            
             z(idx) = val;
         }
-
-        // 4. Stamp Ternary Staircase Clocks
         else if (auto tclk = dynamic_cast<const Passives::TernaryClock*>(comp.get())) {
             size_t pos = tclk->nodes[0];
             size_t neg = tclk->nodes[1];
             size_t idx = num_nodes + source_index_map[tclk->name];
             
-            // Sample the staircase waveform at the current time step
             double val = tclk->get_voltage(t);
             
             if (pos > 0) { A(pos - 1, idx) += 1.0; A(idx, pos - 1) += 1.0; }
             if (neg > 0) { A(neg - 1, idx) -= 1.0; A(idx, neg - 1) -= 1.0; }
-            
             z(idx) = val;
         }
     }
 
-    // --- THE GMIN FIX ---
-    // Inject a 100 nano-Siemens conductance to prevent floating nodes
     double gmin = 1e-7;
-    for (size_t i = 0; i < num_nodes; ++i) {
-        A(i, i) += gmin;
-    }
+    for (size_t i = 0; i < num_nodes; ++i) A(i, i) += gmin;
 }
 
 bool MnaMatrix::solve() {
     Eigen::FullPivLU<Eigen::MatrixXd> lu(A);
     if (!lu.isInvertible()) {
-        std::cerr << "[libasic] CRITICAL: Singular matrix detected at:\n";
-        print_system(); // This will print the exact matrix state for us to debug
+        std::cerr << "[libasic] CRITICAL: Singular matrix detected.\n";
         return false;
     }
     x = lu.solve(z);
@@ -132,8 +102,7 @@ bool MnaMatrix::solve() {
 }
 
 double MnaMatrix::get_node_voltage(size_t node_id) const {
-    if (node_id == 0) return 0.0; // GND is absolute baseline
-    if (node_id > num_nodes) return 0.0;
+    if (node_id == 0 || node_id > num_nodes) return 0.0;
     return x(node_id - 1);
 }
 
