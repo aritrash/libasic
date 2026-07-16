@@ -1,31 +1,34 @@
 # libasic
 
-`libasic` is a custom-built, continuous-time non-linear semiconductor physics engine and circuit simulator written entirely in C++. It is designed specifically to research and model exotic logic topologies, including Balanced Ternary systems, Memristor architectures, and standard CMOS/BJT layouts.
+**libasic** is a continuous-time, non-linear semiconductor physics engine and circuit simulator written entirely in native C++. Designed to break away from the limitations of standard binary truth-table simulators, `libasic` evaluates the fundamental differential physics of silicon to research and model exotic logic topologies, including Balanced Ternary systems, Memristor crossbar arrays, and foundational Compute-in-Memory (CIM) architectures.
 
-## Core Architecture
+## Overview
 
-Unlike standard logic-gate simulators, `libasic` does not use boolean truth tables. It builds a **Modified Nodal Analysis (MNA)** matrix and solves the underlying differential physics of the silicon using a custom **Newton-Raphson** numerical solver. 
+Unlike standard digital logic simulators, `libasic` utilizes a **Modified Nodal Analysis (MNA)** core driven by a custom **Newton-Raphson** numerical solver. This allows the engine to accurately simulate real-world analog silicon effects within digital architectures, including:
 
-This allows for the accurate simulation of real-world analog effects within digital circuits, including:
-* Shoot-through currents and rail tug-of-wars.
-* Metastability and saddle-point voltage resolution.
-* Subthreshold leakage and non-linear conductance.
-* Cross-coupled hysteresis (Flip-Flops/Latches).
+* **Metastability & Hysteresis:** Natively resolves cross-coupled feedback loops (e.g., SR Latches) and saddle-point voltages without artificial boolean forcing.
+* **Shoot-Through Currents:** Accurately models rail-to-rail tug-of-wars during intermediate voltage states.
+* **Non-Volatile Analog State:** Simulates continuous-time electron trapping/de-trapping in electronic memristors for multi-level (ternary) resistance states.
+* **Physical Propagation Delay:** Evaluates RC time constants and capacitive charging curves dynamically.
 
-## Features
+## Core Capabilities
 
-* **Component Library:**
-  * **Active:** NMOS, PMOS, NPN, PNP, Transmission Gates (T-Gates).
-  * **Passive:** Resistors, Capacitors.
-  * **Sources:** DC Voltage, AC Voltage, Pulse Clocks, Ternary Staircase Clocks.
-* **Solvers:**
-  * **DC Operating Point (`solve_dc`):** Stateful Newton-Raphson solver with physical rail-clamping and relaxation damping.
-  * **Transient Solver (`solve`):** Time-domain integration using Backward Euler companion models (WIP).
-* **Export:** Natively generates SPICE netlists (`.export_spice`) and CSV waveform data.
+### Solvers
+* **Stateful DC Operating Point (`solve_dc`):** A robust Newton-Raphson solver featuring physical rail-clamping (±1.3V) and relaxation damping to guarantee convergence even in highly non-linear, positive-feedback topologies.
+* **Adaptive Transient Engine (`solve`):** A time-domain solver utilizing Backward Euler integration. It features an adaptive time-stepper that dynamically shrinks the time delta (`dt`) to resolve instantaneous voltage shocks, then accelerates during steady-state holds.
 
-## Building the Engine
+### Component Library
+* **Active Silicon:** Planar MOSFETs (NMOS/PMOS via Shichman-Hodges), BJTs (NPN/PNP via Ebers-Moll/Gummel-Poon), and composite Transmission Gates (T-Gates).
+* **Dynamic Passives:** Linear Resistors, Capacitors, and **Electronic Memristors** (Voltage-driven HP models adapted for continuous amorphous silicon physics).
+* **Stimulus Sources:** DC Voltage, AC Voltage, dynamic SPICE-accurate Pulse Clocks, and Ternary Staircase Clocks.
 
-The project utilizes CMake for cross-platform compilation. 
+### Output & Data
+* **Data Pipelining:** Direct integration with CSV file generation for high-resolution, time-domain waveform plotting.
+* **EDA Compatibility:** Natively exports circuit topologies to standard SPICE netlists (`.export_spice`) for cross-verification.
+
+## Build Instructions
+
+The project utilizes CMake for cross-platform, dependency-free compilation. 
 
 ```bash
 mkdir build
@@ -34,43 +37,51 @@ cmake ..
 cmake --build .
 ```
 
-## Usage Example: Building an SR Latch
+(Ensure your compiler supports C++17 or higher for std::make_unique and std::clamp capabilities).
 
-libasic provides a highly semantic API for defining circuits and sweeping states.
+## Usage Example: Transient Memristor Simulation
+libasic provides a highly semantic, object-oriented API for defining circuits and sweeping temporal states.
 
 ```cpp
 #include "core/circuit.hpp"
-#include "solver/newton_raphson.hpp"
+#include "core/memristor.hpp"
+#include "solver/transient_solver.hpp"
+#include <iostream>
+#include <fstream>
 
 int main() {
     asic::Circuit circuit;
-    size_t gnd = 0, vdd = 1, in_s = 2, in_r = 3, q = 4, q_bar = 5;
+    size_t gnd = 0, in_node = 1, mid_node = 2;
 
-    // Define Power and Inputs
-    circuit.add<asic::Passives::VoltageSource>("V_DD", vdd, gnd, 1.2, asic::VoltageType::DC);
-    circuit.add<asic::Passives::VoltageSource>("V_S", in_s, gnd, 0.0, asic::VoltageType::DC);
-    circuit.add<asic::Passives::VoltageSource>("V_R", in_r, gnd, 0.0, asic::VoltageType::DC);
+    // Apply a +1.2V write pulse
+    circuit.add<asic::Passives::PulseSource>("V_IN", in_node, gnd, 0.0, 1.2, 1e-3, 1e-5, 1e-5, 2e-3, 10e-3);
 
-    // Build a Cross-Coupled NOR Gate Latch
-    circuit.add<asic::fet::mos>("MN1", asic::Polarity::N_TYPE, q, in_r, gnd, gnd, 2.0, 1.0, 0.4);
-    // ... [add remaining MOSFETs]
+    // Instantiate a Non-Volatile Electronic Memristor (1kΩ to 100kΩ)
+    circuit.add<asic::Passives::Memristor>("MEM1", in_node, mid_node, 1000.0, 100000.0, 0.01, 2e-14);
 
-    // Solve State
-    asic::MnaMatrix state(circuit);
-    asic::NewtonRaphson solver;
-    
-    if (solver.solve_dc(circuit, state)) {
-        // Output automatically resolves metastability and hysteresis
-        std::cout << "Q Voltage: " << state.get_node_voltage(q) << "\n";
+    // Static read resistor to create a voltage divider
+    circuit.add<asic::Passives::Resistor>("R_LOAD", mid_node, gnd, 10000.0);
+
+    // Initialize Solvers
+    asic::MnaMatrix sim_state(circuit);
+    asic::TransientSolver solver(1e-5, 5e-3); // t_step = 10µs, t_stop = 5ms
+
+    // Execute Adaptive Transient Integration
+    std::ofstream csv_file("memristor_waveform.csv");
+    if (csv_file.is_open()) {
+        solver.solve(circuit, sim_state, csv_file);
     }
-
+    
     return 0;
 }
 ```
 
-## License and Author
+## Architecture Notes
+- Decoupled Physics: Dynamic state variables (like the derivative $dw/dt$ of a memristor) are evaluated in isolated component files. The Newton-Raphson engine queries these objects strictly for their instantaneous linear conductance at a frozen point in time ($t$), ensuring $O(N^3)$ matrix inversion remains heavily optimized.
+- Polymorphic Stamping: The MNA matrix dynamically casts and stamps active devices into the Jacobian matrix using a uniform Component base class with RTTI enabled.
+
+## Author & Research Context
 Author: Aritrash Sarkar
+Application: Ternary Photonics Research & Non-Binary Polarization-Coded Photonic Computing
 
-Focus: Non-Binary Computing & Systems Engineering
-
-This project is proprietary research architecture.
+libasic was developed as a foundational testbed to model the physical bridging between traditional planar silicon integration (FEOL) and novel ternary computational models (BEOL memristor arrays), paving the way for next-generation compute-in-memory hardware.
