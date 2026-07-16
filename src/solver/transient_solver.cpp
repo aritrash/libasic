@@ -85,6 +85,14 @@ bool TransientSolver::solve(const Circuit& circuit, MnaMatrix& state, std::ostre
             state = current_state;
             for (size_t i = 1; i <= num_nodes; ++i) v_old(i - 1) = state.get_node_voltage(i);
             
+            for (const auto& comp : circuit.get_components()) {
+                if (auto mem = dynamic_cast<Passives::Memristor*>(comp.get())) {
+                    double v_pos = (mem->nodes[0] > 0) ? state.get_node_voltage(mem->nodes[0]) : 0.0;
+                    double v_neg = (mem->nodes[1] > 0) ? state.get_node_voltage(mem->nodes[1]) : 0.0;
+                    mem->step_time(v_pos - v_neg, current_dt);
+                }
+            }
+            
             csv_out << std::scientific << std::setprecision(6) << t;
             for (size_t i = 1; i <= num_nodes; ++i) csv_out << "," << state.get_node_voltage(i);
             csv_out << "\n";

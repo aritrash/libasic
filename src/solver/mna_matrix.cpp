@@ -84,6 +84,9 @@ void MnaMatrix::stamp_static_elements(const Circuit& circuit, double t) {
             if (pos > 0) { A(pos - 1, idx) += 1.0; A(idx, pos - 1) += 1.0; }
             if (neg > 0) { A(neg - 1, idx) -= 1.0; A(idx, neg - 1) -= 1.0; }
             z(idx) = val;
+        } 
+        else if (auto mem = dynamic_cast<const Passives::Memristor*>(comp.get())) {
+            stamp_conductance(mem->nodes[0], mem->nodes[1], mem->get_conductance());
         }
     }
 

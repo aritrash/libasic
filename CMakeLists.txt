@@ -23,6 +23,7 @@ FetchContent_MakeAvailable(Eigen3)
 # Define the libasic static library
 add_library(libasic STATIC
     src/core/circuit.cpp
+    src/core/memristor.cpp
     src/solver/mna_matrix.cpp
     src/solver/newton_raphson.cpp
     src/solver/transient_solver.cpp

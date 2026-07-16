@@ -101,6 +101,20 @@ public:
             }
         }
     };
+
+    class Memristor : public Component {
+    public:
+        double r_on;
+        double r_off;
+        double mobility; // How fast the state changes
+        double w;        // Internal state: 1.0 = Fully ON (LRS), 0.0 = Fully OFF (HRS)
+
+        // Only declare the signatures here
+        Memristor(const std::string& n, size_t pos, size_t neg, double ron, double roff, double init_w, double mu = 1e-14);
+        
+        double get_conductance() const;
+        void step_time(double v_drop, double dt);
+    };
 };
 
 // Field Effect Transistor API
