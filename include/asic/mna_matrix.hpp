@@ -1,7 +1,7 @@
 #ifndef LIBASIC_MNA_MATRIX_HPP
 #define LIBASIC_MNA_MATRIX_HPP
 
-#include "core/circuit.hpp"
+#include "asic/circuit.hpp"
 #include <Eigen/Dense>
 #include <unordered_map>
 #include <vector>

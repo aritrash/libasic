@@ -1,7 +1,9 @@
-#include "solver/newton_raphson.hpp"
+#include "asic/newton_raphson.hpp"
+#include "asic/exceptions.hpp"
 #include <cmath>
 #include <iostream>
 #include <algorithm>
+#include <string>
 
 namespace asic {
 
@@ -188,9 +190,10 @@ bool NewtonRaphson::solve_dc(const Circuit& circuit, MnaMatrix& final_matrix) {
         next_state.stamp_static_elements(circuit, 0.0);
         stamp_nonlinear_devices(circuit, current_state, next_state);
 
+        // --- INJECTED: Singular Matrix Exception Handling ---
         if (!next_state.solve()) {
-            std::cerr << "[libasic] DC Solver: Singular matrix at iter " << iter << "\n";
-            return false;
+            throw asic::SingularMatrixError("MNA Matrix is singular at iteration " + std::to_string(iter) + 
+                                            ". Check for floating nodes, shorted voltage sources, or unanchored topologies.");
         }
 
         double max_delta = 0.0;
@@ -216,7 +219,10 @@ bool NewtonRaphson::solve_dc(const Circuit& circuit, MnaMatrix& final_matrix) {
         current_state = next_state;
     }
 
-    final_matrix = current_state;
-    return true; 
+    // --- INJECTED: Convergence Exception Handling ---
+    // Replaced the silent 'return true;' which masked non-converging oscillatory states.
+    throw asic::ConvergenceError("Solver exceeded " + std::to_string(max_iterations) + 
+                                 " iterations without reaching tolerance limit.");
 }
+
 } // namespace asic

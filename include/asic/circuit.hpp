@@ -1,7 +1,7 @@
 #ifndef LIBASIC_CIRCUIT_HPP
 #define LIBASIC_CIRCUIT_HPP
 
-#include "core/components.hpp"
+#include "asic/components.hpp"
 #include <memory>
 #include <vector>
 #include <ostream>

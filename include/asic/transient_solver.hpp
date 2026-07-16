@@ -1,9 +1,9 @@
 #ifndef LIBASIC_TRANSIENT_SOLVER_HPP
 #define LIBASIC_TRANSIENT_SOLVER_HPP
 
-#include "core/circuit.hpp"
-#include "solver/mna_matrix.hpp"
-#include "solver/newton_raphson.hpp"
+#include "asic/circuit.hpp"
+#include "asic/mna_matrix.hpp"
+#include "asic/newton_raphson.hpp"
 #include <vector>
 #include <ostream>
 

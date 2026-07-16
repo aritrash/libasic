@@ -1,9 +1,24 @@
-# libasic third-party dependencies configuration
-cmake_minimum_required(VERSION 3.14)
+# third_party/CMakeLists.txt
 
-# Ensure Eigen's fetched source path is visible globally to the IDE's language server
-if(eigen_SOURCE_DIR)
-    include_directories(SYSTEM ${eigen_SOURCE_DIR})
-endif()
+include(FetchContent)
 
-message(STATUS "libasic: Third-party include paths exported successfully.")
+# --- EIGEN 3 ---
+FetchContent_Declare(
+  Eigen3
+  GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
+  GIT_TAG        3.4.0
+)
+set(EIGEN_BUILD_DOC OFF CACHE BOOL "" FORCE)
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(EIGEN_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(Eigen3)
+
+# --- GOOGLETEST ---
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG        release-1.12.1
+)
+# Force GTest to use static runtime on Windows if needed, though default usually works
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)

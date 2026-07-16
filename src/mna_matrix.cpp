@@ -1,4 +1,4 @@
-#include "solver/mna_matrix.hpp"
+#include "asic/mna_matrix.hpp"
 #include <iostream>
 #include <iomanip>
 #include <cmath>

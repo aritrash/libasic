@@ -1,8 +1,8 @@
 #ifndef LIBASIC_NEWTON_RAPHSON_HPP
 #define LIBASIC_NEWTON_RAPHSON_HPP
 
-#include "core/circuit.hpp"
-#include "solver/mna_matrix.hpp"
+#include "asic/circuit.hpp"
+#include "asic/mna_matrix.hpp"
 
 namespace asic {
 
